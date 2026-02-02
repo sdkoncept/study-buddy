@@ -12,7 +12,18 @@ Year 8 study platform: lessons, quizzes, and progress tracking. Learn, practice,
 
 - **Frontend**: Next.js 14 (App Router), React, TypeScript
 - **Backend / DB / Auth**: Supabase (Postgres, Auth, RLS)
-- **Hosting**: Vercel (or run locally)
+- **Hosting**: Vercel, Railway, or run locally
+
+## Deploy on Railway
+
+1. **Connect** your GitHub repo (e.g. `sdkoncept/study-buddy`) to a new Railway project.
+2. **Environment variables** — In Railway → your service → Variables, add:
+   - `NEXT_PUBLIC_SUPABASE_URL` = your Supabase project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = your Supabase anon key
+3. **Node version** — The app needs Node 20+. If the build fails (e.g. Supabase/Node 18 errors), in Railway add:
+   - `NIXPACKS_NODE_VERSION` = `20` (if using Nixpacks), or
+   - Set the **Node** version to 20 in Railway service settings if available.
+4. **Build / start** — Railway should detect Next.js and run `npm install`, `npm run build`, `npm run start`. No extra config needed unless you use a custom Dockerfile.
 
 ## Setup (dev, minimal cost)
 
