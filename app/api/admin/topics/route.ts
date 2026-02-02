@@ -10,28 +10,33 @@ async function requireAdmin(supabase: Awaited<ReturnType<typeof createClient>>) 
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const user = await requireAdmin(supabase);
-  if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  try {
+    const supabase = await createClient();
+    const user = await requireAdmin(supabase);
+    if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const body = await request.json();
-  const subjectId = body?.subject_id as string;
-  const title = (body?.title as string)?.trim();
-  if (!subjectId || !title) return NextResponse.json({ error: "subject_id and title required" }, { status: 400 });
+    const body = await request.json();
+    const subjectId = body?.subject_id as string;
+    const title = (body?.title as string)?.trim();
+    if (!subjectId || !title) return NextResponse.json({ error: "subject_id and title required" }, { status: 400 });
 
-  const { data, error } = await supabase
-    .from("topics")
-    .insert({
-      subject_id: subjectId,
-      title,
-      learning_objectives: body?.learning_objectives ?? null,
-      estimated_study_time_minutes: body?.estimated_study_time_minutes ?? 15,
-      difficulty_level: body?.difficulty_level ?? "Easy",
-      sort_order: body?.sort_order ?? 0,
-    })
-    .select("id")
-    .single();
+    const { data, error } = await supabase
+      .from("topics")
+      .insert({
+        subject_id: subjectId,
+        title,
+        learning_objectives: body?.learning_objectives ?? null,
+        estimated_study_time_minutes: body?.estimated_study_time_minutes ?? 15,
+        difficulty_level: body?.difficulty_level ?? "Easy",
+        sort_order: body?.sort_order ?? 0,
+      })
+      .select("id")
+      .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  } catch (e) {
+    console.error("Admin topics POST error:", e);
+    return NextResponse.json({ error: "Connection error. Please try again." }, { status: 503 });
+  }
 }

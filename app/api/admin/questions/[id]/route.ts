@@ -13,22 +13,27 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = await createClient();
-  const user = await requireAdmin(supabase);
-  if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  try {
+    const supabase = await createClient();
+    const user = await requireAdmin(supabase);
+    if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { id } = await params;
-  const body = await request.json();
+    const { id } = await params;
+    const body = await request.json();
 
-  const updates: Record<string, unknown> = {};
-  if (body?.question_text !== undefined) updates.question_text = (body.question_text as string).trim();
-  if (body?.options !== undefined) updates.options = body.options;
-  if (body?.correct_index !== undefined) updates.correct_index = body.correct_index;
-  if (body?.explanation !== undefined) updates.explanation = body.explanation || null;
-  if (body?.difficulty_level !== undefined) updates.difficulty_level = body.difficulty_level;
-  updates.updated_at = new Date().toISOString();
+    const updates: Record<string, unknown> = {};
+    if (body?.question_text !== undefined) updates.question_text = (body.question_text as string).trim();
+    if (body?.options !== undefined) updates.options = body.options;
+    if (body?.correct_index !== undefined) updates.correct_index = body.correct_index;
+    if (body?.explanation !== undefined) updates.explanation = body.explanation || null;
+    if (body?.difficulty_level !== undefined) updates.difficulty_level = body.difficulty_level;
+    updates.updated_at = new Date().toISOString();
 
-  const { error } = await supabase.from("questions").update(updates).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+    const { error } = await supabase.from("questions").update(updates).eq("id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("Admin questions PATCH error:", e);
+    return NextResponse.json({ error: "Connection error. Please try again." }, { status: 503 });
+  }
 }

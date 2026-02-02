@@ -1,10 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const profileRes = await supabase
     .from("profiles")
@@ -33,10 +36,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Student not linked to you." }, { status: 403 });
   }
 
+  const fortyTwoDaysAgo = new Date();
+  fortyTwoDaysAgo.setDate(fortyTwoDaysAgo.getDate() - 42);
+  const fortyTwoDaysAgoIso = fortyTwoDaysAgo.toISOString();
+
   const [
     countRes,
     attemptsRes,
     lessonProgressRes,
+    lessonProgressCalendarRes,
     goalRes,
     messageRes,
   ] = await Promise.allSettled([
@@ -53,6 +61,11 @@ export async function GET(request: Request) {
       .eq("user_id", studentId)
       .order("completed_at", { ascending: false })
       .limit(50),
+    supabase
+      .from("lesson_progress")
+      .select("completed_at, time_spent_seconds")
+      .eq("user_id", studentId)
+      .gte("completed_at", fortyTwoDaysAgoIso),
     supabase.from("parent_goals").select("topics_per_week").eq("parent_id", user.id).eq("student_id", studentId).maybeSingle(),
     supabase.from("parent_messages").select("id, body, created_at").eq("parent_id", user.id).eq("student_id", studentId).order("created_at", { ascending: false }).limit(5),
   ]);
@@ -62,6 +75,8 @@ export async function GET(request: Request) {
   const attempts = Array.isArray(attemptsRaw) ? attemptsRaw : [];
   const lessonProgressRowsRaw = lessonProgressRes.status === "fulfilled" ? (lessonProgressRes.value as { data: unknown }).data : null;
   const lessonProgressRows = Array.isArray(lessonProgressRowsRaw) ? lessonProgressRowsRaw : [];
+  const calendarRowsRaw = lessonProgressCalendarRes.status === "fulfilled" ? (lessonProgressCalendarRes.value as { data: unknown }).data : null;
+  const calendarRows = Array.isArray(calendarRowsRaw) ? calendarRowsRaw : [];
   const goalRow = goalRes.status === "fulfilled" ? (goalRes.value as { data: { topics_per_week: number } | null }).data : null;
   const messageRows = messageRes.status === "fulfilled" ? ((messageRes.value as { data: unknown }).data ?? []) as { id: string; body: string; created_at: string }[] : [];
 
@@ -140,6 +155,36 @@ export async function GET(request: Request) {
     ? Math.floor((now.getTime() - new Date(lastActivityAt).getTime()) / (24 * 60 * 60 * 1000))
     : null;
 
+  // Study calendar: per-day total minutes and lesson count (from lesson progress, last 42 days)
+  const dayMap = new Map<string, { totalSeconds: number; lessonCount: number }>();
+  calendarRows.forEach((r: { completed_at: string; time_spent_seconds?: number }) => {
+    const dateStr = new Date(r.completed_at).toISOString().slice(0, 10);
+    const existing = dayMap.get(dateStr) ?? { totalSeconds: 0, lessonCount: 0 };
+    existing.totalSeconds += r.time_spent_seconds ?? 0;
+    existing.lessonCount += 1;
+    dayMap.set(dateStr, existing);
+  });
+  const studyCalendar = Array.from(dayMap.entries()).map(([date, v]) => ({
+    date,
+    totalMinutes: Math.round(v.totalSeconds / 60),
+    lessonCount: v.lessonCount,
+  }));
+
+  // Subject summary: average quiz score per subject (for excelling / struggling)
+  const subjectScores = new Map<string, { sum: number; count: number }>();
+  quizAttempts.forEach((a) => {
+    const name = a.subject_name || "Other";
+    const cur = subjectScores.get(name) ?? { sum: 0, count: 0 };
+    cur.sum += a.score_percent;
+    cur.count += 1;
+    subjectScores.set(name, cur);
+  });
+  const subjectSummary = Array.from(subjectScores.entries()).map(([subjectName, v]) => ({
+    subjectName,
+    averageScore: Math.round(v.sum / v.count),
+    attemptCount: v.count,
+  }));
+
   return NextResponse.json({
     lessonsCompleted: lessonsCompleted ?? 0,
     quizAttempts,
@@ -155,5 +200,14 @@ export async function GET(request: Request) {
     daysSinceActivity,
     goal: goalRow?.topics_per_week ?? null,
     messages: messageRows.map((m) => ({ id: m.id, body: m.body, created_at: m.created_at })),
+    studyCalendar,
+    subjectSummary,
   });
+  } catch (e) {
+    console.error("Parent progress error:", e);
+    return NextResponse.json(
+      { error: "Connection error. Please try again." },
+      { status: 503 }
+    );
+  }
 }

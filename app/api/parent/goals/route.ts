@@ -15,46 +15,56 @@ async function ensureParentAndLinked(supabase: Awaited<ReturnType<typeof createC
 }
 
 export async function GET(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const studentId = new URL(request.url).searchParams.get("studentId");
-  if (!studentId) return NextResponse.json({ error: "studentId required" }, { status: 400 });
-  if (!(await ensureParentAndLinked(supabase, user.id, studentId))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const studentId = new URL(request.url).searchParams.get("studentId");
+    if (!studentId) return NextResponse.json({ error: "studentId required" }, { status: 400 });
+    if (!(await ensureParentAndLinked(supabase, user.id, studentId))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { data } = await supabase
+      .from("parent_goals")
+      .select("topics_per_week")
+      .eq("parent_id", user.id)
+      .eq("student_id", studentId)
+      .maybeSingle();
+
+    return NextResponse.json({ topics_per_week: (data as { topics_per_week: number } | null)?.topics_per_week ?? null });
+  } catch (e) {
+    console.error("Parent goals GET error:", e);
+    return NextResponse.json({ error: "Connection error. Please try again." }, { status: 503 });
   }
-
-  const { data } = await supabase
-    .from("parent_goals")
-    .select("topics_per_week")
-    .eq("parent_id", user.id)
-    .eq("student_id", studentId)
-    .maybeSingle();
-
-  return NextResponse.json({ topics_per_week: (data as { topics_per_week: number } | null)?.topics_per_week ?? null });
 }
 
 export async function PATCH(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await request.json().catch(() => ({}));
-  const studentId = body?.studentId as string;
-  const topicsPerWeek = typeof body?.topics_per_week === "number" ? body.topics_per_week : 2;
-  if (!studentId) return NextResponse.json({ error: "studentId required" }, { status: 400 });
-  if (!(await ensureParentAndLinked(supabase, user.id, studentId))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const body = await request.json().catch(() => ({}));
+    const studentId = body?.studentId as string;
+    const topicsPerWeek = typeof body?.topics_per_week === "number" ? body.topics_per_week : 2;
+    if (!studentId) return NextResponse.json({ error: "studentId required" }, { status: 400 });
+    if (!(await ensureParentAndLinked(supabase, user.id, studentId))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { error } = await supabase
+      .from("parent_goals")
+      .upsert(
+        { parent_id: user.id, student_id: studentId, topics_per_week: Math.max(1, Math.min(20, topicsPerWeek)), updated_at: new Date().toISOString() },
+        { onConflict: "parent_id,student_id" }
+      );
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("Parent goals PATCH error:", e);
+    return NextResponse.json({ error: "Connection error. Please try again." }, { status: 503 });
   }
-
-  const { error } = await supabase
-    .from("parent_goals")
-    .upsert(
-      { parent_id: user.id, student_id: studentId, topics_per_week: Math.max(1, Math.min(20, topicsPerWeek)), updated_at: new Date().toISOString() },
-      { onConflict: "parent_id,student_id" }
-    );
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
 }

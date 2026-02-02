@@ -145,3 +145,19 @@ textarea {
 .badge-success { background: rgba(52, 211, 153, 0.2); color: var(--success); }
 .badge-warning { background: rgba(251, 191, 36, 0.2); color: var(--warning); }
 .badge-muted { background: var(--border); color: var(--muted); }
+
+/* Parent dashboard: clearer hierarchy and spacing */
+.parent-dashboard .card {
+  transition: box-shadow 0.2s ease;
+}
+.parent-dashboard .card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+.parent-dashboard section.card {
+  padding: 1.5rem;
+}
+@media (max-width: 640px) {
+  .parent-dashboard section.card {
+    padding: 1rem;
+  }
+}

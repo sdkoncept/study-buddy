@@ -1,10 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const profileRes = await supabase.from("profiles").select("role").eq("id", user.id).single();
   const profile = profileRes.data as { role: string } | null;
@@ -75,4 +78,8 @@ export async function GET(request: Request) {
     questions: details,
     wrong_answers: details.filter((d) => d != null && !d.is_correct) as { question_text: string; their_answer: string; correct_answer: string; explanation: string | null }[],
   });
+  } catch (e) {
+    console.error("Parent quiz-attempt error:", e);
+    return NextResponse.json({ error: "Connection error. Please try again." }, { status: 503 });
+  }
 }

@@ -30,11 +30,13 @@ export default async function ParentPage() {
 
   return (
     <>
-      <h1 style={{ marginBottom: "0.5rem" }}>My children</h1>
+      <h1 style={{ marginBottom: "0.5rem" }}>Dashboard</h1>
       <p style={{ color: "var(--muted)", marginBottom: "1.5rem" }}>
-        View progress for each linked student.
+        View linked children, study calendar, and how each child is doing by subject.
       </p>
-      <ParentDashboard students={students} />
+      <div className="parent-dashboard">
+        <ParentDashboard students={students} />
+      </div>
     </>
   );
 }
