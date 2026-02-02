@@ -86,3 +86,4 @@ Run **`supabase/parent-features.sql`** in Supabase SQL Editor once to add:
 4. Add questions for topic quizzes.
 
 No code changes required.
+# study-buddy
