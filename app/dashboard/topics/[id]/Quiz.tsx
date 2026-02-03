@@ -7,9 +7,30 @@ import Link from "next/link";
 interface QuestionRow {
   id: string;
   question_text: string;
+  question_type: "multiple_choice" | "short_answer";
   options: string[];
   correct_index: number;
+  correct_indices: number[] | null;
+  correct_answer_text: string | null;
   explanation: string | null;
+}
+
+type AnswerEntry = { questionId: string; selectedIndex?: number; selectedIndices?: number[]; typedAnswer?: string };
+
+function sameSet(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort((x, y) => x - y).join(",");
+  const sb = [...b].sort((x, y) => x - y).join(",");
+  return sa === sb;
+}
+
+function getCorrectIndices(q: QuestionRow): number[] {
+  if (q.correct_indices?.length) return q.correct_indices;
+  return [q.correct_index];
+}
+
+function normalizeAnswer(s: string): string {
+  return s.trim().toLowerCase();
 }
 
 export function Quiz({
@@ -26,9 +47,10 @@ export function Quiz({
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [current, setCurrent] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
+  const [typedAnswer, setTypedAnswer] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [answers, setAnswers] = useState<{ questionId: string; selectedIndex: number }[]>([]);
+  const [answers, setAnswers] = useState<AnswerEntry[]>([]);
   const [scoreSaved, setScoreSaved] = useState(false);
   const [finalScore, setFinalScore] = useState<{ correct: number; total: number; percent: number } | null>(null);
 
@@ -36,7 +58,7 @@ export function Quiz({
     const supabase = createClient();
     supabase
       .from("questions")
-      .select("id, question_text, options, correct_index, explanation")
+      .select("id, question_text, question_type, options, correct_index, correct_indices, correct_answer_text, explanation")
       .eq("topic_id", topicId)
       .limit(20)
       .then(({ data, error }) => {
@@ -56,21 +78,47 @@ export function Quiz({
   }
 
   const q = questions[current];
-  const isCorrect = selected !== null && selected === q.correct_index;
-  const showResult = submitted && selected !== null;
+  const isShortAnswer = (q.question_type ?? "multiple_choice") === "short_answer";
+  const correctSet = getCorrectIndices(q);
+  const isCorrect = isShortAnswer
+    ? submitted && q.correct_answer_text != null && normalizeAnswer(typedAnswer) === normalizeAnswer(q.correct_answer_text)
+    : submitted && sameSet(selectedIndices, correctSet);
+  const canSubmit = isShortAnswer ? typedAnswer.trim().length > 0 : true;
+  const showResult = submitted;
+
+  function scoreAnswers(entries: AnswerEntry[]): number {
+    return entries.filter((a, i) => {
+      const qu = questions[i];
+      if ((qu.question_type ?? "multiple_choice") === "short_answer") {
+        const expected = qu.correct_answer_text?.trim();
+        if (!expected) return false;
+        return normalizeAnswer(a.typedAnswer ?? "") === normalizeAnswer(expected);
+      }
+      const theirIndices = a.selectedIndices ?? (a.selectedIndex != null ? [a.selectedIndex] : []);
+      return sameSet(theirIndices, getCorrectIndices(qu));
+    }).length;
+  }
+
+  const toggleOption = (i: number) => {
+    if (submitted) return;
+    setSelectedIndices((prev) =>
+      prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i].sort((a, b) => a - b)
+    );
+  };
 
   async function handleNext() {
-    if (selected === null) return;
-    const newAnswers = [...answers, { questionId: q.id, selectedIndex: selected }];
+    const entry: AnswerEntry = isShortAnswer
+      ? { questionId: q.id, typedAnswer: typedAnswer.trim() }
+      : { questionId: q.id, selectedIndices: [...selectedIndices] };
+    const newAnswers = [...answers, entry];
     setAnswers(newAnswers);
     if (current < questions.length - 1) {
       setCurrent((c) => c + 1);
-      setSelected(null);
+      setSelectedIndices([]);
+      setTypedAnswer("");
       setSubmitted(false);
     } else {
-      const correct = newAnswers.filter(
-        (a, i) => questions[i].correct_index === a.selectedIndex
-      ).length;
+      const correct = scoreAnswers(newAnswers);
       const scorePercent = Math.round((correct / questions.length) * 100);
       if (!scoreSaved) {
         setFinalScore({ correct, total: questions.length, percent: scorePercent });
@@ -109,45 +157,89 @@ export function Quiz({
         Question {current + 1} of {questions.length}
       </p>
       <h2 style={{ fontSize: "1.1rem", marginBottom: "1rem" }}>{q.question_text}</h2>
-      <ul style={{ listStyle: "none" }}>
-        {(q.options || []).map((opt, i) => (
-          <li key={i} style={{ marginBottom: "0.5rem" }}>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{
-                width: "100%",
-                textAlign: "left",
-                background:
-                  submitted && i === q.correct_index
-                    ? "rgba(52, 211, 153, 0.2)"
-                    : submitted && i === selected && i !== q.correct_index
-                    ? "rgba(248, 113, 113, 0.2)"
-                    : selected === i
-                    ? "var(--border)"
-                    : undefined,
-              }}
-              onClick={() => !submitted && setSelected(i)}
-              disabled={submitted}
-            >
-              {opt}
-              {submitted && i === q.correct_index && " ✓"}
-              {submitted && i === selected && i !== q.correct_index && " ✗"}
-            </button>
-          </li>
-        ))}
-      </ul>
-      {showResult && q.explanation && (
-        <p style={{ marginTop: "1rem", padding: "0.75rem", background: "var(--bg)", borderRadius: 8, fontSize: "0.9rem" }}>
-          {q.explanation}
-        </p>
+
+      {isShortAnswer ? (
+        <div style={{ marginBottom: "1rem" }}>
+          <input
+            type="text"
+            value={typedAnswer}
+            onChange={(e) => setTypedAnswer(e.target.value)}
+            placeholder="Type your answer..."
+            disabled={submitted}
+            style={{
+              width: "100%",
+              padding: "0.75rem",
+              fontSize: "1rem",
+              background: "var(--bg)",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              color: "var(--text)",
+            }}
+          />
+          {submitted && (
+            <p style={{ marginTop: "0.5rem", fontSize: "0.9rem", color: isCorrect ? "var(--success)" : "var(--error)" }}>
+              {isCorrect ? "Correct ✓" : "Not quite. See explanation below."}
+            </p>
+          )}
+        </div>
+      ) : (
+        <div style={{ marginBottom: "1rem" }}>
+          <p style={{ color: "var(--muted)", fontSize: "0.9rem", marginBottom: "0.5rem" }}>Select all that apply</p>
+          <ul style={{ listStyle: "none" }}>
+            {(q.options || []).map((opt, i) => {
+              const correct = correctSet.includes(i);
+              const chosen = selectedIndices.includes(i);
+              return (
+                <li key={i} style={{ marginBottom: "0.5rem" }}>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.75rem",
+                      padding: "0.75rem",
+                      background:
+                        submitted && correct
+                          ? "rgba(52, 211, 153, 0.2)"
+                          : submitted && chosen && !correct
+                          ? "rgba(248, 113, 113, 0.2)"
+                          : chosen
+                          ? "var(--border)"
+                          : "transparent",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      cursor: submitted ? "default" : "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={chosen}
+                      onChange={() => toggleOption(i)}
+                      disabled={submitted}
+                    />
+                    <span>{opt}</span>
+                    {submitted && correct && <span style={{ color: "var(--success)", marginLeft: "auto" }}>✓</span>}
+                    {submitted && chosen && !correct && <span style={{ color: "var(--error)", marginLeft: "auto" }}>✗</span>}
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
+
+      {showResult && q.explanation && (
+        <div style={{ marginTop: "1rem", padding: "0.75rem", background: "var(--bg)", borderRadius: 8, fontSize: "0.9rem" }}>
+          <strong style={{ display: "block", marginBottom: "0.35rem" }}>Explanation</strong>
+          {q.explanation}
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
         {!submitted ? (
           <button
             className="btn btn-primary"
             onClick={() => setSubmitted(true)}
-            disabled={selected === null}
+            disabled={!canSubmit}
           >
             Submit answer
           </button>

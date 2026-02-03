@@ -47,6 +47,7 @@ export default async function ParentSubjectPage({
               style={{ display: "block", color: "inherit", textDecoration: "none" }}
             >
               <strong>{t.title}</strong>
+              {t.week_range && <span className="badge badge-muted" style={{ marginLeft: "0.5rem" }}>Week {t.week_range}</span>}
               {t.learning_objectives && (
                 <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginTop: "0.35rem" }}>{t.learning_objectives}</p>
               )}

@@ -35,11 +35,12 @@ create table public.subjects (
   updated_at timestamptz default now()
 );
 
--- Topics under a subject
+-- Topics under a subject (week_range from PDF scheme of work allows same subject uploaded multiple times with different weeks)
 create table public.topics (
   id uuid primary key default uuid_generate_v4(),
   subject_id uuid not null references public.subjects(id) on delete cascade,
   title text not null,
+  week_range text,
   learning_objectives text,
   estimated_study_time_minutes int default 15,
   difficulty_level text check (difficulty_level in ('Easy', 'Medium', 'Hard')),
@@ -48,26 +49,30 @@ create table public.topics (
   updated_at timestamptz default now()
 );
 
--- Lessons under a topic (text, optional image/audio URLs)
+-- Lessons under a topic (text, optional image/audio URLs; image_urls from PDF upload)
 create table public.lessons (
   id uuid primary key default uuid_generate_v4(),
   topic_id uuid not null references public.topics(id) on delete cascade,
   title text not null,
   content text not null,
   image_url text,
+  image_urls jsonb default '[]'::jsonb,
   audio_url text,
   sort_order int default 0,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 
--- Questions (linked to topic; used for topic quiz, weekly/term tests later)
+-- Questions (linked to topic; multiple_choice or short_answer; explanation shown after answer)
 create table public.questions (
   id uuid primary key default uuid_generate_v4(),
   topic_id uuid not null references public.topics(id) on delete cascade,
   question_text text not null,
-  options jsonb not null, -- e.g. ["A", "B", "C", "D"]
-  correct_index int not null, -- 0-based index into options
+  question_type text not null default 'multiple_choice' check (question_type in ('multiple_choice', 'short_answer')),
+  options jsonb not null default '[]'::jsonb,
+  correct_index int not null default 0,
+  correct_indices jsonb default '[]'::jsonb,
+  correct_answer_text text,
   explanation text,
   difficulty_level text check (difficulty_level in ('Easy', 'Medium', 'Hard')),
   created_at timestamptz default now(),

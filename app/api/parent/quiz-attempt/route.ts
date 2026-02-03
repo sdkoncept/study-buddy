@@ -46,16 +46,50 @@ export async function GET(request: Request) {
   const topicId = (attempt as { topic_id: string }).topic_id;
   const { data: questions } = await supabase
     .from("questions")
-    .select("id, question_text, options, correct_index, explanation")
+    .select("id, question_text, question_type, options, correct_index, correct_indices, correct_answer_text, explanation")
     .eq("topic_id", topicId);
 
-  const answers = (attempt as { answers_json: { questionId: string; selectedIndex: number }[] | null }).answers_json ?? [];
+  type AnswerEntry = { questionId: string; selectedIndex?: number; selectedIndices?: number[]; typedAnswer?: string };
+  const answers = (attempt as { answers_json: AnswerEntry[] | null }).answers_json ?? [];
   const questionMap = new Map((questions ?? []).map((q: { id: string }) => [q.id, q]));
 
-  const details = answers.map((a: { questionId: string; selectedIndex: number }) => {
-    const q = questionMap.get(a.questionId) as { question_text: string; options: string[]; correct_index: number; explanation: string | null } | undefined;
+  function norm(s: string): string {
+    return s.trim().toLowerCase();
+  }
+  function sameSet(a: number[], b: number[]): boolean {
+    if (a.length !== b.length) return false;
+    const sa = [...a].sort((x, y) => x - y).join(",");
+    const sb = [...b].sort((x, y) => x - y).join(",");
+    return sa === sb;
+  }
+  function getCorrectIndices(q: { correct_indices?: number[] | null; correct_index: number }): number[] {
+    if (q.correct_indices?.length) return q.correct_indices;
+    return [q.correct_index];
+  }
+  function optionTexts(q: { options?: string[] }, indices: number[]): string {
+    if (!q.options) return "";
+    return indices.map((i) => q.options![i] ?? "").filter(Boolean).join(", ");
+  }
+
+  const details = answers.map((a: AnswerEntry) => {
+    const q = questionMap.get(a.questionId) as {
+      question_text: string;
+      question_type?: string;
+      options: string[];
+      correct_index: number;
+      correct_indices?: number[] | null;
+      correct_answer_text?: string | null;
+      explanation: string | null;
+    } | undefined;
     if (!q) return null;
-    const isCorrect = a.selectedIndex === q.correct_index;
+    const isShort = (q.question_type ?? "multiple_choice") === "short_answer";
+    const theirIndices = a.selectedIndices ?? (a.selectedIndex != null ? [a.selectedIndex] : []);
+    const correctSet = getCorrectIndices(q);
+    const isCorrect = isShort
+      ? (q.correct_answer_text != null && a.typedAnswer != null && norm(a.typedAnswer) === norm(q.correct_answer_text))
+      : sameSet(theirIndices, correctSet);
+    const correctAnswer = isShort ? (q.correct_answer_text ?? "") : optionTexts(q, correctSet);
+    const theirAnswer = isShort ? (a.typedAnswer ?? "") : optionTexts(q, theirIndices);
     return {
       question_text: q.question_text,
       options: q.options,
@@ -63,8 +97,8 @@ export async function GET(request: Request) {
       selected_index: a.selectedIndex,
       is_correct: isCorrect,
       explanation: q.explanation,
-      correct_answer: q.options?.[q.correct_index] ?? "",
-      their_answer: q.options?.[a.selectedIndex] ?? "",
+      correct_answer: correctAnswer,
+      their_answer: theirAnswer,
     };
   }).filter(Boolean);
 

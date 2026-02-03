@@ -26,6 +26,7 @@ export interface Topic {
   id: string;
   subject_id: string;
   title: string;
+  week_range: string | null;
   learning_objectives: string | null;
   estimated_study_time_minutes: number;
   difficulty_level: string | null;
@@ -40,6 +41,7 @@ export interface Lesson {
   title: string;
   content: string;
   image_url: string | null;
+  image_urls: string[] | null;
   audio_url: string | null;
   sort_order: number;
   created_at: string;
@@ -50,8 +52,11 @@ export interface Question {
   id: string;
   topic_id: string;
   question_text: string;
+  question_type: "multiple_choice" | "short_answer";
   options: string[];
   correct_index: number;
+  correct_indices: number[] | null;
+  correct_answer_text: string | null;
   explanation: string | null;
   difficulty_level: string | null;
   created_at: string;
@@ -71,6 +76,6 @@ export interface QuizAttempt {
   user_id: string;
   topic_id: string;
   score_percent: number;
-  answers_json: { questionId: string; selectedIndex: number }[] | null;
+  answers_json: { questionId: string; selectedIndex?: number; selectedIndices?: number[]; typedAnswer?: string }[] | null;
   created_at: string;
 }

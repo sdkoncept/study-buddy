@@ -23,6 +23,7 @@ export async function PATCH(
 
     const updates: Record<string, unknown> = {};
     if (body?.title !== undefined) updates.title = (body.title as string).trim();
+    if (body?.week_range !== undefined) updates.week_range = (body.week_range as string)?.trim() || null;
     if (body?.learning_objectives !== undefined) updates.learning_objectives = body.learning_objectives || null;
     if (body?.estimated_study_time_minutes !== undefined) updates.estimated_study_time_minutes = body.estimated_study_time_minutes;
     if (body?.difficulty_level !== undefined) updates.difficulty_level = body.difficulty_level;

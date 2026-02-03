@@ -16,20 +16,23 @@ export default async function AdminPage() {
         Manage subjects, topics, lessons, and questions.
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-        <div className="card">
+        <Link href="/admin/subjects" className="card" style={{ textDecoration: "none", color: "inherit" }}>
           <strong style={{ fontSize: "1.5rem" }}>{count ?? 0}</strong>
           <p style={{ color: "var(--muted)", fontSize: "0.9rem", marginTop: "0.25rem" }}>Subjects</p>
-        </div>
-        <div className="card">
+        </Link>
+        <Link href="/admin/subjects" className="card" style={{ textDecoration: "none", color: "inherit" }}>
           <strong style={{ fontSize: "1.5rem" }}>{topicCount ?? 0}</strong>
           <p style={{ color: "var(--muted)", fontSize: "0.9rem", marginTop: "0.25rem" }}>Topics</p>
-        </div>
-        <div className="card">
+        </Link>
+        <Link href="/admin/questions" className="card" style={{ textDecoration: "none", color: "inherit" }}>
           <strong style={{ fontSize: "1.5rem" }}>{questionCount ?? 0}</strong>
           <p style={{ color: "var(--muted)", fontSize: "0.9rem", marginTop: "0.25rem" }}>Questions</p>
-        </div>
+        </Link>
       </div>
-      <Link href="/admin/subjects" className="btn btn-primary">Manage subjects</Link>
+      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+        <Link href="/admin/subjects" className="btn btn-primary">Manage subjects</Link>
+        <Link href="/admin/notes/upload" className="btn btn-secondary">Upload notes (PDF)</Link>
+      </div>
     </>
   );
 }

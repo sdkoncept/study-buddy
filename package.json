@@ -14,7 +14,10 @@
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10",
+    "@thednp/dommatrix": "^3.0.2",
     "next": "14.2.18",
+    "pdf-parse": "^2.4.5",
+    "pdf-to-img": "^5.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

@@ -18,23 +18,48 @@ export async function POST(request: Request) {
     const body = await request.json();
     const topicId = body?.topic_id as string;
     const questionText = (body?.question_text as string)?.trim();
+    const questionType = (body?.question_type as string) === "short_answer" ? "short_answer" : "multiple_choice";
     const options = body?.options as string[] | undefined;
     const correctIndex = body?.correct_index as number | undefined;
+    const correctIndices = body?.correct_indices as number[] | undefined;
+    const correctAnswerText = (body?.correct_answer_text as string)?.trim() || null;
 
-    if (!topicId || !questionText || !Array.isArray(options) || options.length < 2 || correctIndex == null) {
-      return NextResponse.json({ error: "topic_id, question_text, options (array), and correct_index required" }, { status: 400 });
+    if (!topicId || !questionText) {
+      return NextResponse.json({ error: "topic_id and question_text required" }, { status: 400 });
     }
-    if (correctIndex < 0 || correctIndex >= options.length) {
-      return NextResponse.json({ error: "correct_index out of range" }, { status: 400 });
+    if (questionType === "multiple_choice") {
+      if (!Array.isArray(options) || options.length < 2) {
+        return NextResponse.json({ error: "Multiple choice requires options (array of 2+)" }, { status: 400 });
+      }
+      const indices = Array.isArray(correctIndices) && correctIndices.length > 0
+        ? correctIndices.filter((i) => i >= 0 && i < options.length)
+        : correctIndex != null && correctIndex >= 0 && correctIndex < options.length
+          ? [correctIndex]
+          : [];
+      if (indices.length === 0) {
+        return NextResponse.json({ error: "Select at least one correct option (correct_indices or correct_index)" }, { status: 400 });
+      }
+    } else {
+      if (!correctAnswerText) {
+        return NextResponse.json({ error: "Short answer requires correct_answer_text" }, { status: 400 });
+      }
     }
 
+    const mcIndices = questionType === "multiple_choice" && Array.isArray(correctIndices) && correctIndices.length > 0
+      ? correctIndices.filter((i) => i >= 0 && i < (options?.length ?? 0))
+      : questionType === "multiple_choice" && correctIndex != null
+        ? [correctIndex]
+        : [];
     const { data, error } = await supabase
       .from("questions")
       .insert({
         topic_id: topicId,
         question_text: questionText,
-        options,
-        correct_index: correctIndex,
+        question_type: questionType,
+        options: questionType === "multiple_choice" ? options! : [],
+        correct_index: questionType === "multiple_choice" ? (mcIndices[0] ?? 0) : 0,
+        correct_indices: questionType === "multiple_choice" ? mcIndices : [],
+        correct_answer_text: correctAnswerText,
         explanation: body?.explanation ?? null,
         difficulty_level: body?.difficulty_level ?? null,
       })

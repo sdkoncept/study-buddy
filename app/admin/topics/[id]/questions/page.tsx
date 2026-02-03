@@ -44,9 +44,14 @@ export default async function AdminQuestionsPage({
           <li key={q.id}>
             <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.5rem" }}>
               <div style={{ flex: "1 1 300px" }}>
-                <strong style={{ fontSize: "0.9rem" }}>{q.question_text}</strong>
+                <Link href={`/admin/questions/${q.id}/edit`} style={{ color: "inherit", fontWeight: 600, fontSize: "0.9rem" }}>{q.question_text}</Link>
                 <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginTop: "0.35rem" }}>
-                  Options: {(q.options as string[]).join(" · ")} → correct index: {q.correct_index}
+                  {(q as Question).question_type === "short_answer"
+                    ? `Short answer → correct: "${(q as Question).correct_answer_text ?? "—"}"`
+                    : (() => {
+                        const ind = (q as Question).correct_indices?.length ? (q as Question).correct_indices! : [q.correct_index];
+                        return `Multiple choice → correct: ${ind.join(", ")}${ind.length > 1 ? " (select all that apply)" : ""}`;
+                      })()}
                 </p>
               </div>
               <Link href={`/admin/questions/${q.id}/edit`} className="btn btn-secondary" style={{ padding: "0.4rem 0.8rem" }}>Edit</Link>

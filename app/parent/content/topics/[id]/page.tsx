@@ -47,9 +47,16 @@ export default async function ParentTopicPage({
           <li key={l.id} className="card">
             <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>{l.title}</h3>
             <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6, fontSize: "0.95rem" }}>{l.content}</div>
-            {l.image_url && (
-              <img src={l.image_url} alt="" style={{ maxWidth: "100%", borderRadius: 8, marginTop: "0.75rem" }} />
-            )}
+            {(() => {
+              const urls = l.image_urls?.length ? l.image_urls : l.image_url ? [l.image_url] : [];
+              return urls.length > 0 ? (
+                <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  {urls.map((src, i) => (
+                    <img key={i} src={src} alt="" style={{ maxWidth: "100%", borderRadius: 8 }} />
+                  ))}
+                </div>
+              ) : null;
+            })()}
             {l.audio_url && (
               <audio controls src={l.audio_url} style={{ marginTop: "0.75rem" }} />
             )}

@@ -56,6 +56,7 @@ export default async function TopicDetailPage({
         topicTitle={t.title}
         lessons={lessonList}
         questionCount={questionCount}
+        estimatedStudyTimeMinutes={t.estimated_study_time_minutes ?? 15}
       />
     </>
   );

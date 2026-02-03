@@ -25,6 +25,7 @@ export async function POST(request: Request) {
       .insert({
         subject_id: subjectId,
         title,
+        week_range: (body?.week_range as string)?.trim() || null,
         learning_objectives: body?.learning_objectives ?? null,
         estimated_study_time_minutes: body?.estimated_study_time_minutes ?? 15,
         difficulty_level: body?.difficulty_level ?? "Easy",

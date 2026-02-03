@@ -30,7 +30,7 @@ export default async function AdminSubjectsPage() {
           <li key={s.id}>
             <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
               <div>
-                <strong>{s.name}</strong>
+                <Link href={`/admin/subjects/${s.id}/topics`} style={{ color: "inherit", fontWeight: 600 }}>{s.name}</Link>
                 <span className="badge badge-muted" style={{ marginLeft: "0.5rem" }}>{s.class_level} · {s.term}</span>
                 {s.is_custom && <span className="badge badge-warning" style={{ marginLeft: "0.35rem" }}>Custom</span>}
                 {s.description && (

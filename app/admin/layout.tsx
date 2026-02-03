@@ -33,6 +33,9 @@ export default async function AdminLayout({
           <Link href="/admin/subjects" className="btn btn-secondary" style={{ padding: "0.4rem 0.8rem" }}>
             Subjects
           </Link>
+          <Link href="/admin/notes/upload" className="btn btn-secondary" style={{ padding: "0.4rem 0.8rem" }}>
+            Upload notes
+          </Link>
           <Link href="/dashboard" className="btn btn-secondary" style={{ padding: "0.4rem 0.8rem" }}>
             Dashboard
           </Link>

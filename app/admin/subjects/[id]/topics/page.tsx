@@ -45,7 +45,8 @@ export default async function AdminTopicsPage({
           <li key={t.id}>
             <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
               <div>
-                <strong>{t.title}</strong>
+                <Link href={`/admin/topics/${t.id}/lessons`} style={{ color: "inherit", fontWeight: 600 }}>{t.title}</Link>
+                {t.week_range && <span className="badge badge-muted" style={{ marginLeft: "0.5rem" }}>Week {t.week_range}</span>}
                 <span className="badge badge-muted" style={{ marginLeft: "0.5rem" }}>{t.estimated_study_time_minutes} min · {t.difficulty_level ?? "—"}</span>
                 {t.learning_objectives && (
                   <p style={{ color: "var(--muted)", fontSize: "0.9rem", marginTop: "0.35rem" }}>{t.learning_objectives}</p>

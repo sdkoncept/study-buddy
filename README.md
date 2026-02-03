@@ -12,18 +12,37 @@ Year 8 study platform: lessons, quizzes, and progress tracking. Learn, practice,
 
 - **Frontend**: Next.js 14 (App Router), React, TypeScript
 - **Backend / DB / Auth**: Supabase (Postgres, Auth, RLS)
-- **Hosting**: Vercel, Railway, or run locally
+- **Hosting**: Vercel (recommended), Railway, or run locally
+
+## Deploy on Vercel (recommended)
+
+Vercel is built for Next.js and usually works with zero extra config.
+
+1. **Sign in** at [vercel.com](https://vercel.com) with GitHub.
+2. **Import** your repo: **Add New → Project** → select your Study Buddy repo → **Import**.
+3. **Environment variables** — Before deploying, add:
+   - `NEXT_PUBLIC_SUPABASE_URL` = your Supabase project URL  
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = your Supabase anon key  
+   (Project → **Settings → Environment Variables**; add for Production, Preview, and Development if you use Vercel previews.)
+4. **Deploy** — Vercel will detect Next.js, run `npm run build`, and serve the app. No `railway.json`, PORT, or Node version config needed.
+5. **Optional:** In Supabase **Authentication → URL Configuration**, add your Vercel URL to **Redirect URLs** (e.g. `https://your-app.vercel.app/**`) so auth redirects work.
 
 ## Deploy on Railway
 
-1. **Connect** your GitHub repo (e.g. `sdkoncept/study-buddy`) to a new Railway project.
-2. **Environment variables** — In Railway → your service → Variables, add:
+1. **Connect** your GitHub repo to a new Railway project.
+2. **Environment variables** — In Railway → your service → **Variables**, add (required for build and runtime):
    - `NEXT_PUBLIC_SUPABASE_URL` = your Supabase project URL
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = your Supabase anon key
-3. **Node version** — The app needs Node 20+. If the build fails (e.g. Supabase/Node 18 errors), in Railway add:
-   - `NIXPACKS_NODE_VERSION` = `20` (if using Nixpacks), or
-   - Set the **Node** version to 20 in Railway service settings if available.
-4. **Build / start** — Railway should detect Next.js and run `npm install`, `npm run build`, `npm run start`. No extra config needed unless you use a custom Dockerfile.
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = your Supabase anon key  
+   These are embedded at build time; if missing, the app may build but fail at runtime.
+3. **Build / start** — The repo includes `railway.json` so Railway will:
+   - Use **Railpack** (default builder), run `npm run build`, and start with `npx next start --port $PORT`.
+   - Use Node 20 (from `.nvmrc` and `.node-version`). If the build still uses Node 18, add variable `RAILPACK_NODE_VERSION` = `20` in Railway.
+4. **If deployment fails:**
+   - **Build fails (Node / Supabase warnings):** Add variable `RAILPACK_NODE_VERSION` = `20` (or `NODE_VERSION` = `20` in service settings). Clear build cache and redeploy.
+   - **Build succeeds but app won't start / "No start command":** The repo's `railway.json` sets `startCommand` to `npx next start --port $PORT`. If you overrode the start command in the dashboard, remove it so the file is used, or set it to `npx next start --port $PORT`.
+   - **Repo or folder name has a space:** If the repo is named with a space (e.g. "study buddy"), clone or deploy from a path without spaces, or rename the repo to use a hyphen (e.g. `study-buddy`) to avoid path issues in the build.
+   - **Out of memory during build:** In Railway service settings, try increasing memory if available.
+   - **"Cannot create code snapshot right now":** This is a Railway platform error (their snapshot service). Try: (1) wait a few minutes and **Redeploy** from the Railway dashboard; (2) push a small new commit (e.g. empty or a README tweak) to trigger a fresh deploy; (3) in Railway → project → **Settings**, try **Disconnect** then **Reconnect** the GitHub repo; (4) check [Railway status](https://status.railway.app/) for incidents. If it persists, contact Railway support.
 
 ## Setup (dev, minimal cost)
 
@@ -34,7 +53,9 @@ Year 8 study platform: lessons, quizzes, and progress tracking. Learn, practice,
    - Project URL
    - `anon` (public) key
 3. In **SQL Editor**, run the entire contents of `supabase/schema.sql`. This creates tables, RLS, trigger, and seed data (Mathematics & English with sample topics/lessons/questions).
-4. **Avoid “Email rate limit exceeded” (dev):** Supabase sends a confirmation email on each signup and limits this to about 2 per hour. For development, turn this off so signups don’t send email: go to **Authentication → Providers → Email** and **disable “Confirm email”**. New users can then sign in right after signup without confirming.
+4. **Optional migrations** (if your DB was created from an older schema): run `supabase/add-topics-week-range.sql` and `supabase/add-lessons-image-urls.sql`.
+5. **PDF notes with images:** Create a Storage bucket: **Storage → New bucket** → name `lesson-images`, set to **Public**. This lets uploaded PDF page images be stored and shown in lessons.
+6. **Avoid “Email rate limit exceeded” (dev):** Supabase sends a confirmation email on each signup and limits this to about 2 per hour. For development, turn this off so signups don’t send email: go to **Authentication → Providers → Email** and **disable “Confirm email”**. New users can then sign in right after signup without confirming.
 
 ### 2. Environment
 

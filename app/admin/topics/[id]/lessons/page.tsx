@@ -45,7 +45,7 @@ export default async function AdminLessonsPage({
           <li key={l.id}>
             <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
               <div>
-                <strong>{l.title}</strong>
+                <Link href={`/admin/lessons/${l.id}/edit`} style={{ color: "inherit", fontWeight: 600 }}>{l.title}</Link>
                 <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginTop: "0.35rem", maxWidth: "60ch" }}>
                   {l.content.slice(0, 120)}…
                 </p>

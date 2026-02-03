@@ -10,6 +10,7 @@ type TopicFormProps = {
     id: string;
     subject_id: string;
     title: string;
+    week_range?: string | null;
     learning_objectives: string | null;
     estimated_study_time_minutes: number;
     difficulty_level: string | null;
@@ -19,6 +20,7 @@ type TopicFormProps = {
 export function TopicForm({ subjectId, topic }: TopicFormProps) {
   const router = useRouter();
   const [title, setTitle] = useState(topic?.title ?? "");
+  const [weekRange, setWeekRange] = useState(topic?.week_range ?? "");
   const [learningObjectives, setLearningObjectives] = useState(topic?.learning_objectives ?? "");
   const [estimatedMinutes, setEstimatedMinutes] = useState(topic?.estimated_study_time_minutes ?? 15);
   const [difficulty, setDifficulty] = useState(topic?.difficulty_level ?? "Easy");
@@ -36,6 +38,7 @@ export function TopicForm({ subjectId, topic }: TopicFormProps) {
       body: JSON.stringify({
         subject_id: subjectId,
         title: title.trim(),
+        week_range: weekRange.trim() || null,
         learning_objectives: learningObjectives.trim() || null,
         estimated_study_time_minutes: estimatedMinutes,
         difficulty_level: difficulty,
@@ -62,6 +65,16 @@ export function TopicForm({ subjectId, topic }: TopicFormProps) {
           required
           placeholder="e.g. Introduction to Algebra"
         />
+      </div>
+      <div className="form-group">
+        <label htmlFor="week_range">Week range (optional)</label>
+        <input
+          id="week_range"
+          value={weekRange}
+          onChange={(e) => setWeekRange(e.target.value)}
+          placeholder="e.g. 1 & 2, 3, 4-5"
+        />
+        <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginTop: "0.25rem" }}>From scheme of work; helps when the same subject has multiple uploads (e.g. different terms).</p>
       </div>
       <div className="form-group">
         <label htmlFor="learning_objectives">Learning objectives</label>
