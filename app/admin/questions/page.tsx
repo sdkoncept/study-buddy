@@ -11,11 +11,13 @@ export default async function AdminAllQuestionsPage() {
     .select("id, topic_id, question_text, options, correct_index, topics(id, title, subject_id, subjects(id, name))")
     .order("topic_id", { ascending: true });
 
-  // Supabase returns joined relation as "topics" (table name)
-  const list = (questions ?? []).map((q) => ({
-    ...q,
-    topic: (q as { topics?: { id: string; title: string; subject_id: string; subjects: { name: string } | null } }).topics,
-  }));
+  // Supabase returns joined relation as "topics" (table name); may be object or array
+  type TopicWithSubject = { id: string; title: string; subject_id: string; subjects: { name: string } | null };
+  const list = (questions ?? []).map((q) => {
+    const raw = (q as unknown as { topics?: TopicWithSubject | TopicWithSubject[] }).topics;
+    const topic: TopicWithSubject | undefined = Array.isArray(raw) ? raw[0] : raw;
+    return { ...q, topic };
+  });
 
 
   return (
@@ -36,12 +38,11 @@ export default async function AdminAllQuestionsPage() {
                   {q.question_text}
                 </Link>
                 <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginTop: "0.35rem" }}>
-                  {"question_type" in q && q.question_type === "short_answer"
-                    ? `Short answer → correct: "${(q as { correct_answer_text?: string }).correct_answer_text ?? "—"}"`
+                  {(q as unknown as { question_type?: string }).question_type === "short_answer"
+                    ? `Short answer → correct: "${(q as unknown as { correct_answer_text?: string }).correct_answer_text ?? "—"}"`
                     : (() => {
-                        const ind = (q as { correct_indices?: number[] }).correct_indices?.length
-                          ? (q as { correct_indices: number[] }).correct_indices
-                          : [q.correct_index];
+                        const correctIndices = (q as unknown as { correct_indices?: number[] }).correct_indices;
+                        const ind = correctIndices?.length ? correctIndices : [q.correct_index];
                         return `Multiple choice → correct indices: ${ind.join(", ")}`;
                       })()}
                 </p>

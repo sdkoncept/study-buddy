@@ -53,23 +53,21 @@ export async function GET(request: Request) {
   const answers = (attempt as { answers_json: AnswerEntry[] | null }).answers_json ?? [];
   const questionMap = new Map((questions ?? []).map((q: { id: string }) => [q.id, q]));
 
-  function norm(s: string): string {
-    return s.trim().toLowerCase();
-  }
-  function sameSet(a: number[], b: number[]): boolean {
+  const norm = (s: string): string => s.trim().toLowerCase();
+  const sameSet = (a: number[], b: number[]): boolean => {
     if (a.length !== b.length) return false;
     const sa = [...a].sort((x, y) => x - y).join(",");
     const sb = [...b].sort((x, y) => x - y).join(",");
     return sa === sb;
-  }
-  function getCorrectIndices(q: { correct_indices?: number[] | null; correct_index: number }): number[] {
+  };
+  const getCorrectIndices = (q: { correct_indices?: number[] | null; correct_index: number }): number[] => {
     if (q.correct_indices?.length) return q.correct_indices;
     return [q.correct_index];
-  }
-  function optionTexts(q: { options?: string[] }, indices: number[]): string {
+  };
+  const optionTexts = (q: { options?: string[] }, indices: number[]): string => {
     if (!q.options) return "";
     return indices.map((i) => q.options![i] ?? "").filter(Boolean).join(", ");
-  }
+  };
 
   const details = answers.map((a: AnswerEntry) => {
     const q = questionMap.get(a.questionId) as {
