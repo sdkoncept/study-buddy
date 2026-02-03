@@ -12,6 +12,7 @@ type LessonFormProps = {
     title: string;
     content: string;
     image_url: string | null;
+    image_urls?: string[] | null;
     audio_url: string | null;
   };
 };
@@ -20,10 +21,19 @@ export function LessonForm({ topicId, lesson }: LessonFormProps) {
   const router = useRouter();
   const [title, setTitle] = useState(lesson?.title ?? "");
   const [content, setContent] = useState(lesson?.content ?? "");
-  const [imageUrl, setImageUrl] = useState(lesson?.image_url ?? "");
+  const [imageUrlsText, setImageUrlsText] = useState(() => {
+    if (lesson?.image_urls?.length) return lesson.image_urls!.join("\n");
+    if (lesson?.image_url) return lesson.image_url;
+    return "";
+  });
   const [audioUrl, setAudioUrl] = useState(lesson?.audio_url ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const imageUrls = imageUrlsText
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,7 +47,8 @@ export function LessonForm({ topicId, lesson }: LessonFormProps) {
         topic_id: topicId,
         title: title.trim(),
         content: content.trim(),
-        image_url: imageUrl.trim() || null,
+        image_url: imageUrls[0] ?? null,
+        image_urls: imageUrls,
         audio_url: audioUrl.trim() || null,
       }),
     });
@@ -75,14 +86,17 @@ export function LessonForm({ topicId, lesson }: LessonFormProps) {
         />
       </div>
       <div className="form-group">
-        <label htmlFor="image_url">Image URL (optional)</label>
-        <input
-          id="image_url"
-          type="url"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="https://..."
+        <label htmlFor="image_urls">Image URLs (optional, one per line)</label>
+        <textarea
+          id="image_urls"
+          value={imageUrlsText}
+          onChange={(e) => setImageUrlsText(e.target.value)}
+          rows={3}
+          placeholder={"https://example.com/image1.png\nhttps://example.com/image2.png"}
         />
+        <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
+          Add multiple image URLs; one per line. All will be shown in the lesson.
+        </p>
       </div>
       <div className="form-group">
         <label htmlFor="audio_url">Audio URL (optional, for languages)</label>

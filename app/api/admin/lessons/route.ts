@@ -23,13 +23,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "topic_id, title, and content required" }, { status: 400 });
     }
 
+    const imageUrls = Array.isArray(body?.image_urls) ? body.image_urls.filter((u: unknown) => typeof u === "string" && u.trim()) : [];
+    const imageUrl = body?.image_url ?? (imageUrls[0] ?? null);
+
     const { data, error } = await supabase
       .from("lessons")
       .insert({
         topic_id: topicId,
         title,
         content,
-        image_url: body?.image_url ?? null,
+        image_url: imageUrl || null,
+        image_urls: imageUrls.length > 0 ? imageUrls : [],
         audio_url: body?.audio_url ?? null,
         sort_order: body?.sort_order ?? 0,
       })

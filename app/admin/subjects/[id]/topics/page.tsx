@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Subject, Topic } from "@/lib/types";
+import { DeleteButton } from "../../../DeleteButton";
 
 export default async function AdminTopicsPage({
   params,
@@ -52,10 +53,16 @@ export default async function AdminTopicsPage({
                   <p style={{ color: "var(--muted)", fontSize: "0.9rem", marginTop: "0.35rem" }}>{t.learning_objectives}</p>
                 )}
               </div>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
+              <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
                 <Link href={`/admin/topics/${t.id}/lessons`} className="btn btn-secondary" style={{ padding: "0.4rem 0.8rem" }}>Lessons</Link>
                 <Link href={`/admin/topics/${t.id}/questions`} className="btn btn-secondary" style={{ padding: "0.4rem 0.8rem" }}>Questions</Link>
                 <Link href={`/admin/topics/${t.id}/edit`} className="btn btn-secondary" style={{ padding: "0.4rem 0.8rem" }}>Edit</Link>
+                <DeleteButton
+                  endpoint={`/api/admin/topics/${t.id}`}
+                  redirectTo={`/admin/subjects/${subjectId}/topics`}
+                  label="Delete"
+                  itemName={t.title}
+                />
               </div>
             </div>
           </li>

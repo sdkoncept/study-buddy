@@ -25,6 +25,11 @@ export async function PATCH(
     if (body?.title !== undefined) updates.title = (body.title as string).trim();
     if (body?.content !== undefined) updates.content = (body.content as string).trim();
     if (body?.image_url !== undefined) updates.image_url = body.image_url || null;
+    if (body?.image_urls !== undefined) {
+      const urls = Array.isArray(body.image_urls) ? body.image_urls.filter((u: unknown) => typeof u === "string" && (u as string).trim()) : [];
+      updates.image_urls = urls;
+      updates.image_url = urls[0] ?? null;
+    }
     if (body?.audio_url !== undefined) updates.audio_url = body.audio_url || null;
     if (body?.sort_order !== undefined) updates.sort_order = body.sort_order;
     updates.updated_at = new Date().toISOString();
@@ -34,6 +39,25 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("Admin lessons PATCH error:", e);
+    return NextResponse.json({ error: "Connection error. Please try again." }, { status: 503 });
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = await createClient();
+    const user = await requireAdmin(supabase);
+    if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const { id } = await params;
+    const { error } = await supabase.from("lessons").delete().eq("id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("Admin lessons DELETE error:", e);
     return NextResponse.json({ error: "Connection error. Please try again." }, { status: 503 });
   }
 }
