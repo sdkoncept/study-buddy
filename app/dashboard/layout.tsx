@@ -1,6 +1,7 @@
 import { requireProfile } from "@/lib/auth";
 import Link from "next/link";
 import { SignOutButton } from "./SignOutButton";
+import { FloatingAIButton } from "./FloatingAIButton";
 
 export default async function DashboardLayout({
   children,
@@ -11,6 +12,7 @@ export default async function DashboardLayout({
 
   return (
     <div>
+      {profile.role === "student" && <FloatingAIButton show />}
       <header
         style={{
           borderBottom: "1px solid var(--border)",

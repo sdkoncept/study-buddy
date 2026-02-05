@@ -18,11 +18,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     const topicId = body?.topic_id as string;
     const questionText = (body?.question_text as string)?.trim();
-    const questionType = (body?.question_type as string) === "short_answer" ? "short_answer" : "multiple_choice";
+    const rawType = body?.question_type as string;
+    const questionType = rawType === "external_answer" ? "external_answer"
+      : rawType === "short_answer" ? "short_answer" : "multiple_choice";
     const options = body?.options as string[] | undefined;
     const correctIndex = body?.correct_index as number | undefined;
     const correctIndices = body?.correct_indices as number[] | undefined;
     const correctAnswerText = (body?.correct_answer_text as string)?.trim() || null;
+    const imageUrl = (body?.image_url as string)?.trim() || null;
 
     if (!topicId || !questionText) {
       return NextResponse.json({ error: "topic_id and question_text required" }, { status: 400 });
@@ -39,7 +42,7 @@ export async function POST(request: Request) {
       if (indices.length === 0) {
         return NextResponse.json({ error: "Select at least one correct option (correct_indices or correct_index)" }, { status: 400 });
       }
-    } else {
+    } else if (questionType === "short_answer") {
       if (!correctAnswerText) {
         return NextResponse.json({ error: "Short answer requires correct_answer_text" }, { status: 400 });
       }
@@ -56,12 +59,13 @@ export async function POST(request: Request) {
         topic_id: topicId,
         question_text: questionText,
         question_type: questionType,
-        options: questionType === "multiple_choice" ? options! : [],
+        options: questionType === "multiple_choice" ? options! : [] as string[],
         correct_index: questionType === "multiple_choice" ? (mcIndices[0] ?? 0) : 0,
         correct_indices: questionType === "multiple_choice" ? mcIndices : [],
         correct_answer_text: correctAnswerText,
         explanation: body?.explanation ?? null,
         difficulty_level: body?.difficulty_level ?? null,
+        image_url: imageUrl,
       })
       .select("id")
       .single();

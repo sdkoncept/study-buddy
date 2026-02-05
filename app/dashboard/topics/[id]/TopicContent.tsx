@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import type { Lesson } from "@/lib/types";
 import { Quiz } from "./Quiz";
+import { StudyHelpChat } from "@/app/dashboard/StudyHelpChat";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -14,12 +15,14 @@ function formatTime(seconds: number): string {
 export function TopicContent({
   topicId,
   topicTitle,
+  subjectName,
   lessons,
   questionCount,
   estimatedStudyTimeMinutes = 15,
 }: {
   topicId: string;
   topicTitle: string;
+  subjectName: string;
   lessons: Lesson[];
   questionCount: number;
   estimatedStudyTimeMinutes?: number;
@@ -99,6 +102,7 @@ export function TopicContent({
               Take quiz ({questionCount} questions)
             </button>
           )}
+          <StudyHelpChat topicId={topicId} subjectName={subjectName} topicTitle={topicTitle} />
         </div>
       </>
     );
@@ -155,6 +159,7 @@ export function TopicContent({
       {currentLesson.audio_url && (
         <audio controls src={currentLesson.audio_url} style={{ marginBottom: "1rem" }} />
       )}
+      <StudyHelpChat topicId={topicId} subjectName={subjectName} topicTitle={topicTitle} />
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
         {!lessonCompleted && (
           <button

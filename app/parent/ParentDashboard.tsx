@@ -150,6 +150,130 @@ function StudyCalendar({ studyCalendarMap }: { studyCalendarMap: Map<string, { t
   );
 }
 
+// —— Quiz attempt detail with external-question grading ——
+type AttemptDetail = {
+  topic_title: string;
+  score_percent: number;
+  created_at: string;
+  attempt_id?: string;
+  student_id?: string;
+  wrong_answers: { question_text: string; their_answer: string; correct_answer: string; explanation: string | null }[];
+  external_questions?: { question_id: string; question_text: string; external_grade?: { image_url: string | null; score: number } }[];
+};
+
+function AttemptDetailCard({
+  detail,
+  onClose,
+  onGraded,
+}: {
+  detail: AttemptDetail;
+  onClose: () => void;
+  onGraded: () => void;
+}) {
+  const [grading, setGrading] = useState<Record<string, { score: string; file: File | null; saving: boolean }>>(() => {
+    const init: Record<string, { score: string; file: File | null; saving: boolean }> = {};
+    externals.forEach((eq) => {
+      init[eq.question_id] = { score: eq.external_grade?.score != null ? String(eq.external_grade.score) : "", file: null, saving: false };
+    });
+    return init;
+  });
+  const attemptId = detail.attempt_id;
+  const studentId = detail.student_id;
+  const externals = detail.external_questions ?? [];
+
+  async function submitGrade(qId: string) {
+    if (!attemptId || !studentId) return;
+    const g = grading[qId];
+    const score = g?.score ? parseInt(g.score, 10) : NaN;
+    if (isNaN(score) || score < 0 || score > 100) return;
+    setGrading((prev) => ({ ...prev, [qId]: { ...prev[qId], saving: true } }));
+    try {
+      const formData = new FormData();
+      formData.append("attemptId", attemptId);
+      formData.append("studentId", studentId);
+      formData.append("questionId", qId);
+      formData.append("score", String(score));
+      if (g?.file) formData.append("file", g.file);
+      const res = await fetch("/api/external-grade", { method: "POST", body: formData });
+      if (res.ok) onGraded();
+    } finally {
+      setGrading((prev) => ({ ...prev, [qId]: { ...prev[qId], saving: false, file: null } }));
+    }
+  }
+
+  return (
+    <div className="card" style={{ background: "var(--bg)", marginBottom: "1rem" }}>
+      <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>Quiz: {detail.topic_title} — {detail.score_percent}%</h3>
+      <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginBottom: "0.75rem" }}>{new Date(detail.created_at).toLocaleString()}</p>
+      {detail.wrong_answers?.length === 0 ? (
+        <p style={{ color: "var(--success)", margin: 0 }}>No wrong answers.</p>
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {(detail.wrong_answers ?? []).map((w, i) => (
+            <li key={i} className="card" style={{ marginBottom: "0.5rem", padding: "0.75rem" }}>
+              <p style={{ marginBottom: "0.35rem" }}>{w.question_text}</p>
+              <p style={{ marginBottom: "0.2rem", color: "var(--error)", fontSize: "0.9rem" }}>Their answer: {w.their_answer}</p>
+              <p style={{ marginBottom: "0.2rem", color: "var(--success)", fontSize: "0.9rem" }}>Correct: {w.correct_answer}</p>
+              {w.explanation && <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.85rem" }}>{w.explanation}</p>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {externals.length > 0 && (
+        <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--border)" }}>
+          <h4 style={{ fontSize: "0.95rem", marginBottom: "0.5rem", color: "var(--muted)" }}>Questions answered outside platform</h4>
+          <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.75rem" }}>Upload the student&apos;s work and add a score (0–100).</p>
+          {externals.map((eq) => (
+            <div key={eq.question_id} className="card" style={{ marginBottom: "0.75rem", padding: "0.75rem" }}>
+              <p style={{ marginBottom: "0.5rem", fontSize: "0.9rem" }}>{eq.question_text}</p>
+              {eq.external_grade?.image_url && (
+                <img src={eq.external_grade.image_url} alt="Student work" style={{ maxWidth: "100%", maxHeight: 160, borderRadius: 8, marginBottom: "0.5rem", border: "1px solid var(--border)" }} />
+              )}
+              <p style={{ fontSize: "0.85rem", marginBottom: "0.5rem" }}>
+                {eq.external_grade != null ? <>Scored: <strong>{eq.external_grade.score}%</strong></> : "Not yet graded"}
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  placeholder="Score 0–100"
+                  value={grading[eq.question_id]?.score ?? ""}
+                  onChange={(e) => setGrading((p) => ({ ...p, [eq.question_id]: { ...p[eq.question_id], score: e.target.value } }))}
+                  style={{ width: "5rem", padding: "0.4rem", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)" }}
+                />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    setGrading((p) => ({ ...p, [eq.question_id]: { ...p[eq.question_id], file: f ?? null } }));
+                  }}
+                  style={{ fontSize: "0.85rem" }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ padding: "0.4rem 0.75rem" }}
+                  onClick={() => submitGrade(eq.question_id)}
+                  disabled={grading[eq.question_id]?.saving || (() => {
+                    const s = grading[eq.question_id]?.score ?? (eq.external_grade != null ? String(eq.external_grade.score) : "");
+                    const n = parseInt(s, 10);
+                    return isNaN(n) || n < 0 || n > 100;
+                  })()}
+                >
+                  {grading[eq.question_id]?.saving ? "Saving…" : eq.external_grade ? "Update grade" : "Save grade"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <button type="button" className="btn btn-secondary" style={{ marginTop: "0.5rem" }} onClick={onClose}>Close</button>
+    </div>
+  );
+}
+
 // —— One child's full dashboard (all visible, no expand) ——
 function ChildDashboard({
   studentId,
@@ -170,7 +294,10 @@ function ChildDashboard({
     topic_title: string;
     score_percent: number;
     created_at: string;
+    attempt_id?: string;
+    student_id?: string;
     wrong_answers: { question_text: string; their_answer: string; correct_answer: string; explanation: string | null }[];
+    external_questions?: { question_id: string; question_text: string; external_grade?: { image_url: string | null; score: number } }[];
   } | null>(null);
 
   useEffect(() => {
@@ -204,7 +331,13 @@ function ChildDashboard({
   async function viewAttemptDetail(attemptId: string) {
     const res = await fetch(`/api/parent/quiz-attempt?studentId=${studentId}&attemptId=${attemptId}`);
     const d = await res.json();
-    if (res.ok) setAttemptDetail({ ...d, wrong_answers: d.wrong_answers ?? [] });
+    if (res.ok) setAttemptDetail({
+      ...d,
+      attempt_id: d.attempt_id ?? attemptId,
+      student_id: d.student_id ?? studentId,
+      wrong_answers: d.wrong_answers ?? [],
+      external_questions: d.external_questions ?? [],
+    });
   }
 
   if (loading) {
@@ -332,25 +465,11 @@ function ChildDashboard({
 
       {/* Quiz attempt detail modal-style */}
       {attemptDetail && (
-        <div className="card" style={{ background: "var(--bg)", marginBottom: "1rem" }}>
-          <h3 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>Quiz: {attemptDetail.topic_title} — {attemptDetail.score_percent}%</h3>
-          <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginBottom: "0.75rem" }}>{new Date(attemptDetail.created_at).toLocaleString()}</p>
-          {attemptDetail.wrong_answers?.length === 0 ? (
-            <p style={{ color: "var(--success)", margin: 0 }}>No wrong answers.</p>
-          ) : (
-            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {(attemptDetail.wrong_answers ?? []).map((w, i) => (
-                <li key={i} className="card" style={{ marginBottom: "0.5rem", padding: "0.75rem" }}>
-                  <p style={{ marginBottom: "0.35rem" }}>{w.question_text}</p>
-                  <p style={{ marginBottom: "0.2rem", color: "var(--error)", fontSize: "0.9rem" }}>Their answer: {w.their_answer}</p>
-                  <p style={{ marginBottom: "0.2rem", color: "var(--success)", fontSize: "0.9rem" }}>Correct: {w.correct_answer}</p>
-                  {w.explanation && <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.85rem" }}>{w.explanation}</p>}
-                </li>
-              ))}
-            </ul>
-          )}
-          <button type="button" className="btn btn-secondary" style={{ marginTop: "0.5rem" }} onClick={() => setAttemptDetail(null)}>Close</button>
-        </div>
+        <AttemptDetailCard
+          detail={attemptDetail}
+          onClose={() => setAttemptDetail(null)}
+          onGraded={() => viewAttemptDetail(attemptDetail.attempt_id ?? "")}
+        />
       )}
 
       {/* Goals & message in one row */}

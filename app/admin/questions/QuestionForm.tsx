@@ -10,20 +10,21 @@ type QuestionFormProps = {
     id: string;
     topic_id: string;
     question_text: string;
-    question_type?: "multiple_choice" | "short_answer";
+    question_type?: "multiple_choice" | "short_answer" | "external_answer";
     options: string[];
     correct_index: number;
     correct_indices?: number[] | null;
     correct_answer_text?: string | null;
     explanation: string | null;
+    image_url?: string | null;
   };
 };
 
 export function QuestionForm({ topicId, question }: QuestionFormProps) {
   const router = useRouter();
   const [questionText, setQuestionText] = useState(question?.question_text ?? "");
-  const [questionType, setQuestionType] = useState<"multiple_choice" | "short_answer">(
-    question?.question_type ?? "multiple_choice"
+  const [questionType, setQuestionType] = useState<"multiple_choice" | "short_answer" | "external_answer">(
+    (question?.question_type === "external_answer" ? "external_answer" : question?.question_type === "short_answer" ? "short_answer" : "multiple_choice")
   );
   const [optionsText, setOptionsText] = useState(
     question?.options?.length ? (question.options as string[]).join("\n") : ""
@@ -35,8 +36,34 @@ export function QuestionForm({ topicId, question }: QuestionFormProps) {
   });
   const [correctAnswerText, setCorrectAnswerText] = useState(question?.correct_answer_text ?? "");
   const [explanation, setExplanation] = useState(question?.explanation ?? "");
+  const [imageUrl, setImageUrl] = useState(question?.image_url ?? "");
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("topicId", topicId);
+      const res = await fetch("/api/admin/questions/upload-image", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      setImageUrl(data.url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Image upload failed");
+    } finally {
+      setUploadingImage(false);
+      e.target.value = "";
+    }
+  }
 
   const toggleCorrect = (index: number) => {
     setCorrectIndices((prev) => {
@@ -59,7 +86,7 @@ export function QuestionForm({ topicId, question }: QuestionFormProps) {
         setError("Select at least one correct option.");
         return;
       }
-    } else {
+    } else if (questionType === "short_answer") {
       if (!correctAnswerText.trim()) {
         setError("Enter the correct answer for short-answer questions.");
         return;
@@ -73,6 +100,7 @@ export function QuestionForm({ topicId, question }: QuestionFormProps) {
     const validIndices = questionType === "multiple_choice"
       ? correctIndices.filter((i) => i >= 0 && i < options.length)
       : [];
+    const isExternal = questionType === "external_answer";
     const res = await fetch(url, {
       method: question ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
@@ -80,11 +108,12 @@ export function QuestionForm({ topicId, question }: QuestionFormProps) {
         topic_id: topicId,
         question_text: questionText.trim(),
         question_type: questionType,
-        options,
+        options: isExternal ? [] : options,
         correct_index: questionType === "multiple_choice" ? (validIndices[0] ?? 0) : 0,
         correct_indices: questionType === "multiple_choice" ? validIndices : null,
         correct_answer_text: questionType === "short_answer" ? correctAnswerText.trim() : null,
         explanation: explanation.trim() || null,
+        image_url: imageUrl.trim() || null,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -107,8 +136,53 @@ export function QuestionForm({ topicId, question }: QuestionFormProps) {
           onChange={(e) => setQuestionText(e.target.value)}
           required
           rows={2}
-          placeholder="e.g. In the equation 3 + y = 10, what is y?"
+          placeholder="e.g. In the equation 3 + y = 10, what is y? Or: Complete the diagram to show what happens when a light ray hits a plane mirror."
         />
+      </div>
+      <div className="form-group">
+        <label>Question image (optional)</label>
+        <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginBottom: "0.5rem" }}>
+          Add a diagram or image for the question. PNG, JPEG, WebP, or GIF, max 5 MB.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+              onChange={handleImageUpload}
+              disabled={uploadingImage}
+              style={{ fontSize: "0.9rem" }}
+            />
+            {uploadingImage && <span style={{ color: "var(--muted)", fontSize: "0.9rem" }}>Uploading…</span>}
+          </div>
+          {imageUrl && (
+            <div style={{ position: "relative", display: "inline-block" }}>
+              <img
+                src={imageUrl}
+                alt="Question"
+                style={{ maxWidth: "100%", maxHeight: 200, borderRadius: 8, border: "1px solid var(--border)" }}
+              />
+              <button
+                type="button"
+                onClick={() => setImageUrl("")}
+                style={{
+                  position: "absolute",
+                  top: 4,
+                  right: 4,
+                  padding: "0.25rem 0.5rem",
+                  fontSize: "0.8rem",
+                  background: "var(--error)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       <div className="form-group">
         <label>Answer type</label>
@@ -130,6 +204,15 @@ export function QuestionForm({ topicId, question }: QuestionFormProps) {
               onChange={() => setQuestionType("short_answer")}
             />
             Short answer (type in)
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", cursor: "pointer" }}>
+            <input
+              type="radio"
+              name="question_type"
+              checked={questionType === "external_answer"}
+              onChange={() => setQuestionType("external_answer")}
+            />
+            Answer outside platform (e.g. draw on paper)
           </label>
         </div>
       </div>
@@ -168,6 +251,11 @@ export function QuestionForm({ topicId, question }: QuestionFormProps) {
             </p>
           </div>
         </>
+      )}
+      {questionType === "external_answer" && (
+        <p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
+          The student will see the question (and any image) and can mark it complete after answering on paper or elsewhere.
+        </p>
       )}
       {questionType === "short_answer" && (
         <div className="form-group">

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Subject, Topic } from "@/lib/types";
+import { StudyHelpChat } from "../../StudyHelpChat";
 
 export default async function SubjectDetailPage({
   params,
@@ -39,8 +40,11 @@ export default async function SubjectDetailPage({
       </nav>
       <h1 style={{ marginBottom: "0.5rem" }}>{sub.name}</h1>
       {sub.description && (
-        <p style={{ color: "var(--muted)", marginBottom: "1.5rem" }}>{sub.description}</p>
+        <p style={{ color: "var(--muted)", marginBottom: "1rem" }}>{sub.description}</p>
       )}
+      <div style={{ marginBottom: "1.5rem" }}>
+        <StudyHelpChat subjectName={sub.name} variant="button" />
+      </div>
       <h2 style={{ fontSize: "1.1rem", marginBottom: "0.75rem" }}>Topics</h2>
       <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
         {topicList.map((t) => (

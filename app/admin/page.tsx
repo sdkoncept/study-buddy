@@ -31,6 +31,7 @@ export default async function AdminPage() {
       </div>
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
         <Link href="/admin/subjects" className="btn btn-primary">Manage subjects</Link>
+        <Link href="/admin/attempts" className="btn btn-secondary">Quiz attempts</Link>
         <Link href="/admin/notes/upload" className="btn btn-secondary">Upload notes (PDF)</Link>
       </div>
     </>

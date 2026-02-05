@@ -54,6 +54,7 @@ export default async function TopicDetailPage({
       <TopicContent
         topicId={topicId}
         topicTitle={t.title}
+        subjectName={t.subjects?.name ?? "Subject"}
         lessons={lessonList}
         questionCount={questionCount}
         estimatedStudyTimeMinutes={t.estimated_study_time_minutes ?? 15}

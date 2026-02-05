@@ -38,7 +38,9 @@ export default async function AdminAllQuestionsPage() {
                   {q.question_text}
                 </Link>
                 <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginTop: "0.35rem" }}>
-                  {(q as unknown as { question_type?: string }).question_type === "short_answer"
+                  {(q as unknown as { question_type?: string }).question_type === "external_answer"
+                    ? "Answer outside platform"
+                    : (q as unknown as { question_type?: string }).question_type === "short_answer"
                     ? `Short answer → correct: "${(q as unknown as { correct_answer_text?: string }).correct_answer_text ?? "—"}"`
                     : (() => {
                         const correctIndices = (q as unknown as { correct_indices?: number[] }).correct_indices;

@@ -52,12 +52,13 @@ export interface Question {
   id: string;
   topic_id: string;
   question_text: string;
-  question_type: "multiple_choice" | "short_answer";
+  question_type: "multiple_choice" | "short_answer" | "external_answer";
   options: string[];
   correct_index: number;
   correct_indices: number[] | null;
   correct_answer_text: string | null;
   explanation: string | null;
+  image_url: string | null;
   difficulty_level: string | null;
   created_at: string;
   updated_at: string;

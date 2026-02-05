@@ -46,7 +46,9 @@ export default async function AdminQuestionsPage({
               <div style={{ flex: "1 1 300px" }}>
                 <Link href={`/admin/questions/${q.id}/edit`} style={{ color: "inherit", fontWeight: 600, fontSize: "0.9rem" }}>{q.question_text}</Link>
                 <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginTop: "0.35rem" }}>
-                  {(q as Question).question_type === "short_answer"
+                  {(q as Question).question_type === "external_answer"
+                    ? "Answer outside platform"
+                    : (q as Question).question_type === "short_answer"
                     ? `Short answer → correct: "${(q as Question).correct_answer_text ?? "—"}"`
                     : (() => {
                         const ind = (q as Question).correct_indices?.length ? (q as Question).correct_indices! : [q.correct_index];

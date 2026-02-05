@@ -53,8 +53,8 @@ Vercel is built for Next.js and usually works with zero extra config.
    - Project URL
    - `anon` (public) key
 3. In **SQL Editor**, run the entire contents of `supabase/schema.sql`. This creates tables, RLS, trigger, and seed data (Mathematics & English with sample topics/lessons/questions).
-4. **Optional migrations** (if your DB was created from an older schema): run `supabase/add-topics-week-range.sql` and `supabase/add-lessons-image-urls.sql`.
-5. **PDF notes with images:** Create a Storage bucket: **Storage → New bucket** → name `lesson-images`, set to **Public**. This lets uploaded PDF page images be stored and shown in lessons.
+4. **Optional migrations** (if your DB was created from an older schema): run `supabase/add-topics-week-range.sql`, `supabase/add-lessons-image-urls.sql`, `supabase/add-question-type-external-answer.sql` (for "answer outside platform" questions), and `supabase/add-external-answer-grades.sql` (for teachers/admins to upload student work and score those questions).
+5. **PDF notes and question images:** Create a Storage bucket: **Storage → New bucket** → name `lesson-images`, set to **Public**. Run `supabase/storage-lesson-images-policies.sql` in the SQL Editor so admins can upload (PDF pages, question images). Without these policies you’ll get "new row violates row-level security policy" on upload.
 6. **Avoid “Email rate limit exceeded” (dev):** Supabase sends a confirmation email on each signup and limits this to about 2 per hour. For development, turn this off so signups don’t send email: go to **Authentication → Providers → Email** and **disable “Confirm email”**. New users can then sign in right after signup without confirming.
 
 ### 2. Environment
@@ -67,6 +67,7 @@ Edit `.env.local` and set:
 
 - `NEXT_PUBLIC_SUPABASE_URL` = your Supabase project URL  
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = your anon key  
+- `GROQ_API_KEY` = your Groq API key (optional, for AI study help; get a free key at [console.groq.com](https://console.groq.com/keys))  
 
 ### 3. Install and run
 

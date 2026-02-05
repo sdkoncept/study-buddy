@@ -12,9 +12,14 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.20",
+    "@ai-sdk/groq": "^3.0.21",
+    "@ai-sdk/openai": "^3.0.25",
+    "@ai-sdk/react": "^3.0.71",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10",
     "@thednp/dommatrix": "^3.0.2",
+    "ai": "^6.0.69",
     "next": "14.2.18",
     "pdf-parse": "^2.4.5",
     "pdf-to-img": "^5.0.0",

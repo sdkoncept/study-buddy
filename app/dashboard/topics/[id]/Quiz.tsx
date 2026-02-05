@@ -3,19 +3,21 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { StudyHelpChat } from "@/app/dashboard/StudyHelpChat";
 
 interface QuestionRow {
   id: string;
   question_text: string;
-  question_type: "multiple_choice" | "short_answer";
+  question_type: "multiple_choice" | "short_answer" | "external_answer";
   options: string[];
   correct_index: number;
   correct_indices: number[] | null;
   correct_answer_text: string | null;
   explanation: string | null;
+  image_url: string | null;
 }
 
-type AnswerEntry = { questionId: string; selectedIndex?: number; selectedIndices?: number[]; typedAnswer?: string };
+type AnswerEntry = { questionId: string; selectedIndex?: number; selectedIndices?: number[]; typedAnswer?: string; externalCompleted?: boolean };
 
 function sameSet(a: number[], b: number[]): boolean {
   if (a.length !== b.length) return false;
@@ -58,7 +60,7 @@ export function Quiz({
     const supabase = createClient();
     supabase
       .from("questions")
-      .select("id, question_text, question_type, options, correct_index, correct_indices, correct_answer_text, explanation")
+      .select("id, question_text, question_type, options, correct_index, correct_indices, correct_answer_text, explanation, image_url")
       .eq("topic_id", topicId)
       .limit(20)
       .then(({ data, error }) => {
@@ -78,25 +80,36 @@ export function Quiz({
   }
 
   const q = questions[current];
+  const isExternalAnswer = (q.question_type ?? "multiple_choice") === "external_answer";
   const isShortAnswer = (q.question_type ?? "multiple_choice") === "short_answer";
   const correctSet = getCorrectIndices(q);
-  const isCorrect = isShortAnswer
+  const isCorrect = isExternalAnswer
+    ? submitted // external: "completed" counts as done
+    : isShortAnswer
     ? submitted && q.correct_answer_text != null && normalizeAnswer(typedAnswer) === normalizeAnswer(q.correct_answer_text)
     : submitted && sameSet(selectedIndices, correctSet);
-  const canSubmit = isShortAnswer ? typedAnswer.trim().length > 0 : true;
+  const canSubmit = isExternalAnswer ? true : isShortAnswer ? typedAnswer.trim().length > 0 : true;
   const showResult = submitted;
 
-  function scoreAnswers(entries: AnswerEntry[]): number {
-    return entries.filter((a, i) => {
+  function scoreAnswers(entries: AnswerEntry[]): { correct: number; total: number } {
+    const graded = questions.filter((qu) => (qu.question_type ?? "multiple_choice") !== "external_answer");
+    if (graded.length === 0) return { correct: 0, total: 0 };
+    let correct = 0;
+    for (let i = 0; i < entries.length; i++) {
       const qu = questions[i];
+      if ((qu.question_type ?? "multiple_choice") === "external_answer") continue;
+      const a = entries[i];
+      if (!a) continue;
       if ((qu.question_type ?? "multiple_choice") === "short_answer") {
         const expected = qu.correct_answer_text?.trim();
-        if (!expected) return false;
-        return normalizeAnswer(a.typedAnswer ?? "") === normalizeAnswer(expected);
+        if (!expected) continue;
+        if (normalizeAnswer(a.typedAnswer ?? "") === normalizeAnswer(expected)) correct++;
+      } else {
+        const theirIndices = a.selectedIndices ?? (a.selectedIndex != null ? [a.selectedIndex] : []);
+        if (sameSet(theirIndices, getCorrectIndices(qu))) correct++;
       }
-      const theirIndices = a.selectedIndices ?? (a.selectedIndex != null ? [a.selectedIndex] : []);
-      return sameSet(theirIndices, getCorrectIndices(qu));
-    }).length;
+    }
+    return { correct, total: graded.length };
   }
 
   const toggleOption = (i: number) => {
@@ -107,7 +120,9 @@ export function Quiz({
   };
 
   async function handleNext() {
-    const entry: AnswerEntry = isShortAnswer
+    const entry: AnswerEntry = isExternalAnswer
+      ? { questionId: q.id, externalCompleted: true }
+      : isShortAnswer
       ? { questionId: q.id, typedAnswer: typedAnswer.trim() }
       : { questionId: q.id, selectedIndices: [...selectedIndices] };
     const newAnswers = [...answers, entry];
@@ -118,10 +133,10 @@ export function Quiz({
       setTypedAnswer("");
       setSubmitted(false);
     } else {
-      const correct = scoreAnswers(newAnswers);
-      const scorePercent = Math.round((correct / questions.length) * 100);
+      const { correct, total } = scoreAnswers(newAnswers);
+      const scorePercent = total > 0 ? Math.round((correct / total) * 100) : 100;
       if (!scoreSaved) {
-        setFinalScore({ correct, total: questions.length, percent: scorePercent });
+        setFinalScore({ correct, total, percent: scorePercent });
         setScoreSaved(true);
         await fetch("/api/progress/quiz", {
           method: "POST",
@@ -136,12 +151,19 @@ export function Quiz({
     }
   }
 
+  const externalCount = questions.filter((qu) => (qu.question_type ?? "multiple_choice") === "external_answer").length;
+
   if (scoreSaved && finalScore) {
     return (
       <div className="card">
         <h2 style={{ marginBottom: "0.5rem" }}>Quiz complete</h2>
         <p style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>
           Score: <strong>{finalScore.percent}%</strong> ({finalScore.correct}/{finalScore.total})
+          {externalCount > 0 && (
+            <span style={{ color: "var(--muted)", fontSize: "0.9rem", marginLeft: "0.5rem" }}>
+              ({externalCount} answered outside platform)
+            </span>
+          )}
         </p>
         <div style={{ display: "flex", gap: "0.75rem" }}>
           <Link href="/dashboard/subjects" className="btn btn-primary">Back to subjects</Link>
@@ -157,8 +179,23 @@ export function Quiz({
         Question {current + 1} of {questions.length}
       </p>
       <h2 style={{ fontSize: "1.1rem", marginBottom: "1rem" }}>{q.question_text}</h2>
+      {q.image_url && (
+        <div style={{ marginBottom: "1rem" }}>
+          <img
+            src={q.image_url}
+            alt="Question diagram"
+            style={{ maxWidth: "100%", maxHeight: 280, borderRadius: 8, border: "1px solid var(--border)" }}
+          />
+        </div>
+      )}
 
-      {isShortAnswer ? (
+      {isExternalAnswer ? (
+        <div style={{ marginBottom: "1rem", padding: "1rem", background: "var(--bg)", borderRadius: 8, border: "1px solid var(--border)" }}>
+          <p style={{ color: "var(--muted)", fontSize: "0.95rem", margin: 0 }}>
+            Answer this question on paper or outside the platform (e.g. draw a diagram, show your working).
+          </p>
+        </div>
+      ) : isShortAnswer ? (
         <div style={{ marginBottom: "1rem" }}>
           <input
             type="text"
@@ -234,14 +271,14 @@ export function Quiz({
         </div>
       )}
 
-      <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
+      <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem", flexWrap: "wrap" }}>
         {!submitted ? (
           <button
             className="btn btn-primary"
             onClick={() => setSubmitted(true)}
             disabled={!canSubmit}
           >
-            Submit answer
+            {isExternalAnswer ? "I've completed this" : "Submit answer"}
           </button>
         ) : (
           <button className="btn btn-primary" onClick={handleNext}>
@@ -249,6 +286,7 @@ export function Quiz({
           </button>
         )}
         <button className="btn btn-secondary" onClick={onBack}>Back to lesson</button>
+        <StudyHelpChat topicId={topicId} topicTitle={topicTitle} variant="button" />
       </div>
     </div>
   );
