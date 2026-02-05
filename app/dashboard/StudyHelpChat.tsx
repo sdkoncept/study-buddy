@@ -2,7 +2,19 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+function getMessageText(msg: { parts: unknown[] }): string {
+  return msg.parts
+    .map((part) => {
+      if (typeof part === "object" && part !== null && "type" in part && (part as { type: string }).type === "text" && "text" in part) {
+        return (part as { text: string }).text;
+      }
+      return "";
+    })
+    .filter(Boolean)
+    .join("");
+}
 
 /** AI study helper - works with or without topic context. Use throughout the platform. */
 export function StudyHelpChat({
@@ -33,6 +45,35 @@ export function StudyHelpChat({
   });
 
   const [input, setInput] = useState("");
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+
+  const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
+
+  const speakMessage = (msgId: string, text: string) => {
+    if (!canSpeak || !text.trim()) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text.trim());
+    utterance.rate = 0.95;
+    utterance.onend = () => setSpeakingId(null);
+    utterance.onerror = () => setSpeakingId(null);
+    window.speechSynthesis.speak(utterance);
+    setSpeakingId(msgId);
+  };
+
+  const stopSpeaking = () => {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setSpeakingId(null);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,29 +189,52 @@ export function StudyHelpChat({
               : 'Ask anything! e.g. "Help me understand algebra" or "What topics should I study next?"'}
           </p>
         )}
-        {messages.map((msg) => (
-          <div key={msg.id} style={{ marginBottom: "0.75rem" }}>
-            <span
-              style={{
-                display: "inline-block",
-                fontWeight: 600,
-                fontSize: "0.8rem",
-                color: msg.role === "user" ? "var(--accent)" : "var(--success)",
-                marginBottom: "0.25rem",
-              }}
-            >
-              {msg.role === "user" ? "You" : "AI"}
-            </span>
-            <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.5, fontSize: "0.95rem" }}>
-              {msg.parts.map((part, i) => {
-                if (typeof part === "object" && part !== null && "type" in part && (part as { type: string }).type === "text" && "text" in part) {
-                  return <span key={`${msg.id}-${i}`}>{(part as { text: string }).text}</span>;
-                }
-                return null;
-              })}
+        {messages.map((msg) => {
+          const text = getMessageText(msg);
+          const isAssistant = msg.role !== "user";
+          const isSpeaking = speakingId === msg.id;
+          return (
+            <div key={msg.id} style={{ marginBottom: "0.75rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+                <span
+                  style={{
+                    fontWeight: 600,
+                    fontSize: "0.8rem",
+                    color: msg.role === "user" ? "var(--accent)" : "var(--success)",
+                  }}
+                >
+                  {msg.role === "user" ? "You" : "AI"}
+                </span>
+                {isAssistant && canSpeak && text.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => (isSpeaking ? stopSpeaking() : speakMessage(msg.id, text))}
+                    aria-label={isSpeaking ? "Stop speaking" : "Listen"}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: "0.2rem",
+                      cursor: "pointer",
+                      fontSize: "1rem",
+                      opacity: isSpeaking ? 1 : 0.7,
+                      color: "var(--accent)",
+                    }}
+                  >
+                    {isSpeaking ? "⏹" : "🔊"}
+                  </button>
+                )}
+              </div>
+              <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.5, fontSize: "0.95rem" }}>
+                {msg.parts.map((part, i) => {
+                  if (typeof part === "object" && part !== null && "type" in part && (part as { type: string }).type === "text" && "text" in part) {
+                    return <span key={`${msg.id}-${i}`}>{(part as { text: string }).text}</span>;
+                  }
+                  return null;
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {(status === "submitted" || status === "streaming") && (
           <p style={{ color: "var(--muted)", fontSize: "0.9rem", fontStyle: "italic", margin: 0 }}>Thinking…</p>
         )}
