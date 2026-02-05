@@ -51,7 +51,7 @@ async function updateAttemptScore(
     .select("question_id, score")
     .eq("attempt_id", attemptId);
 
-  const answers = ((attempt as { answers_json: { questionId: string; selectedIndices?: number[]; selectedIndex?: number; typedAnswer?: string }[] } | null).answers_json) ?? [];
+  const answers = (attempt as { answers_json?: { questionId: string; selectedIndices?: number[]; selectedIndex?: number; typedAnswer?: string }[] }).answers_json ?? [];
   const questionMap = new Map((questions ?? []).map((q: { id: string; question_type: string }) => [q.id, q]));
   const gradeMap = new Map((grades ?? []).map((g: { question_id: string; score: number }) => [g.question_id, g.score]));
 
